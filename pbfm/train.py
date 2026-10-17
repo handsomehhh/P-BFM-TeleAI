@@ -111,6 +111,7 @@ def build_ufo_mjlab_config(
     disable_obs_noise: bool = False,
     lr_scale: float = 1.0,
     clip_grad_norm: float | None = None,
+    batch_size: int | None = None,
     resume_replay_warmup_steps: int = _FINAL_DEFAULTS["resume_replay_warmup_steps"],
     cartwheel_aux_safe: bool = False,
     heading_context: bool = True,
@@ -166,6 +167,7 @@ def build_ufo_mjlab_config(
         update_z_every_step=update_z_every_step,
         lr_scale=lr_scale,
         clip_grad_norm=clip_grad_norm,
+        batch_size=batch_size,
         cartwheel_aux_safe=cartwheel_aux_safe,
         heading_context=heading_context,
         heading_reg_coeff=heading_reg_coeff,
@@ -361,6 +363,7 @@ def run_train(args: argparse.Namespace, log_dir: Path) -> None:
         disable_obs_noise=bool(args.disable_obs_noise),
         lr_scale=args.lr_scale,
         clip_grad_norm=args.clip_grad_norm,
+        batch_size=args.batch_size,
         resume_replay_warmup_steps=args.resume_replay_warmup_steps,
         cartwheel_aux_safe=bool(args.cartwheel_aux_safe),
         heading_context=bool(args.heading_context),
@@ -395,6 +398,7 @@ def run_train(args: argparse.Namespace, log_dir: Path) -> None:
         f"num_env_steps_global={args.num_env_steps}, buffer_size_per_rank={cfg.buffer_size}, "
         f"num_agent_updates={cfg.num_agent_updates}, update_agent_every_local={cfg.update_agent_every}, "
         f"cartwheel_aux_safe={args.cartwheel_aux_safe}, lr_scale={args.lr_scale}, clip_grad_norm={args.clip_grad_norm}, "
+        f"batch_size_per_rank={cfg.agent.train.batch_size}, "
         f"heading_context={cfg.agent.model.heading_context_enabled}, "
         f"heading_reg_coeff={getattr(cfg.agent.train, 'reg_coeff_heading', 0.0):g}, "
         f"aux_reward_normalizer_freeze_global_steps="
@@ -653,6 +657,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--disable-dr", action="store_true", help="Disable domain randomization for training.")
     parser.add_argument("--disable-obs-noise", action="store_true", help="Disable observation noise for training.")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=_FINAL_DEFAULTS["agent"]["train"]["batch_size"],
+        help="Optimizer batch size per rank. Keep batch-size x ranks at the 8x1024 default when using fewer GPUs.",
+    )
     parser.add_argument("--lr-scale", type=float, default=1.0, help="Scale FB learning rates.")
     parser.add_argument("--clip-grad-norm", type=float, default=_FINAL_DEFAULTS["agent"]["train"]["clip_grad_norm"], help="Enable FB actor/FB gradient clipping when > 0.")
     parser.add_argument(
@@ -751,6 +761,8 @@ def parse_args() -> argparse.Namespace:
         raise ValueError("--no-behavior-prior requires --prior-plane-envs 0")
     if args.num_agent_updates is not None and args.num_agent_updates <= 0:
         raise ValueError("--num-agent-updates must be positive")
+    if args.batch_size <= 0:
+        raise ValueError("--batch-size must be positive")
     if args.lr_scale <= 0:
         raise ValueError("--lr-scale must be positive")
     if args.clip_grad_norm < 0:

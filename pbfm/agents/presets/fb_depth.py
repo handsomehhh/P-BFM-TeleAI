@@ -26,6 +26,7 @@ def build_fb_depth_agent(
     heading_context: bool = True,
     heading_reg_coeff: float | None = None,
     behavior_prior: bool = True,
+    batch_size: int | None = None,
 ) -> FBcprAuxAgentConfig:
     """Preserve final architecture/rewards unless an override is explicit.
 
@@ -54,6 +55,11 @@ def build_fb_depth_agent(
         if not math.isfinite(clip_grad_norm) or clip_grad_norm < 0:
             raise ValueError("clip_grad_norm must be finite and non-negative")
         train["clip_grad_norm"] = float(clip_grad_norm)
+    if batch_size is not None:
+        seq_length = int(raw["model"]["seq_length"])
+        if batch_size <= 0 or batch_size % seq_length:
+            raise ValueError(f"batch_size must be a positive multiple of seq_length={seq_length}")
+        train["batch_size"] = int(batch_size)
     # D retains the calibrated 5e-6 learning rate; explicit scaling affects
     # Actor, FB and the value critics, including QV.
     for key in train:
