@@ -136,6 +136,11 @@ class PlaySession:
             disable_obs_noise=args.disable_obs_noise,
             max_episode_length_s=args.max_episode_length_s,
         )
+        if not Path(env_cfg.lafan_tail_path).exists():
+            raise FileNotFoundError(
+                f"Motion data not found: {env_cfg.lafan_tail_path}. "
+                "Run `bash scripts/download_data.sh` or pass --data-path."
+            )
         # Every RP1 family lives in the same seeded grid, so a tile change is only
         # an env-origin reassignment, never an environment rebuild.
         self.env_cfg = _terrain_env_cfg(env_cfg, args.terrain_family, seed=RP1_TERRAIN_SEED)
