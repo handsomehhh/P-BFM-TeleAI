@@ -1,18 +1,19 @@
 # Inference and deployment export
 
-The only policy inference entry points are:
+The policy inference entry points are:
 
 ```bash
 python -m pbfm.inference.tracking --help
 python -m pbfm.inference.goal --help
 python -m pbfm.inference.reward --help
+python -m pbfm.inference.play --help      # interactive browser viewer
 ```
 
 Run from the repository root after installation. Supply the run directory with
 `--model-folder`; it must contain the selected checkpoint. Motion data and weights
 are external. Tracking includes camera, terrain selection, terrain-relative reset
-and motion-reference/policy comparison options; a second preview program is not
-needed. For a training terrain tile, for example:
+and motion-reference/policy comparison options. For a training terrain tile, for
+example:
 
 ```bash
 python -m pbfm.inference.tracking --model-folder /path/to/run \
@@ -24,6 +25,30 @@ Terrain geometry is read from that checkpoint's configuration. The family name
 alone does not specify the direction of travel: RP1 center-outward traversal of
 `low_stairs_down` goes uphill. Check reset position, heading and actual geometry
 before labelling a video.
+
+## Interactive playback
+
+`pbfm.inference.play` runs the same tracking rollout and streams it to a browser
+(Viser), with the reference motion drawn as a translucent ghost. Motion, RP1
+terrain family/difficulty row, speed and frame are chosen on the page, and
+"Reload latest checkpoint" picks up a newer checkpoint from a run that is still
+training. The checkpoint is copied to a local snapshot before loading, so a run
+that is rewriting `checkpoint/` is safe to point at.
+
+```bash
+python -m pbfm.inference.play --model-folder /path/to/run \
+  --motion-id 20 --terrain-family flat --port 16180
+# on your workstation:
+ssh -N -L 16180:127.0.0.1:16180 <cluster>   # then open http://localhost:16180
+```
+
+Each (motion, terrain) episode is simulated once, shown live while it runs, then
+replayed in real time with a scrubbable timeline; finished episodes are cached
+until the checkpoint is reloaded. Playback is deterministic (mean actions, domain
+randomization and observation noise off by default). The single-environment
+observation pipeline is slower than real time, especially on a GPU shared with
+training (about 8 steps/s next to a full training job on an H100), which is why
+playback is recorded first rather than driven live.
 
 ## Context
 
